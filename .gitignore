@@ -1,0 +1,11 @@
+.env
+*.pyc
+__pycache__/
+desert_progress_*.json
+desert_report_*.html
+*.log
+.DS_Store
+venv/
+.venv/
+*ok
+*mix
