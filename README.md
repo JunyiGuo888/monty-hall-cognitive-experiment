@@ -1,11 +1,32 @@
 # Monty Hall Cognitive Experiment
 
+> [!NOTE]
+> **Core Hypothesis:** Human consciousness operates as an active, self-adaptive "codec" influenced by metaphysical intuition and curiosity, leading to systematic Bayesian cognitive biases when contrasted with algorithmic rationality. This simulation is designed to operationalise that hypothesis through controlled multi‑agent interactions, providing empirical ground for studying the gap between human‑like intuition and purely rational decision‑making.
+
+![Monty Hall Simulation Dashboard](docs/montyhall.png "Experiment dashboard - animated GIF coming soon")
+
+<!-- The above image placeholder will be replaced with an animated GIF in future releases -->
+
+![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Architecture](https://img.shields.io/badge/Architecture-Hybrid%20API%20%2B%20Ollama-green)
+![Research](https://img.shields.io/badge/Field-Cognitive%20Science-orange)
+
 **Multi-agent LLM simulation of a Monty Hall problem disguised as a desert survival scenario, designed to study Bayesian belief revision, paradigm shift, and the influence of subjective priors, strong illusions, conformity, and concession on AI reasoning.**
 
-[![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://python.org)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
 ---
+
+### ⚡ Zero-Cost & Multi-Provider Readiness
+
+> [!TIP]
+> The core engine features an auto-adaptive fallback architecture. It dynamically detects active API keys or local **Ollama** instances without forcing complex setup. Run it right away – no configuration required if you have a local Ollama running.
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/JunyiGuo888/monty-hall-cognitive-experiment.git
+
+# 2. Run with zero API cost (auto-detects local Ollama / active keys)
+python main.py
 
 ## Overview
 
@@ -22,7 +43,7 @@ The simulation captures **complete reasoning chains (CoT)** for every agent at e
 - The impact of **social conformity** (within‑vehicle debates) and **concession** (cross‑team negotiation) on final decisions.
 - **Environmental interference** – how partial information loss (boss message corruption) affects judgment.
 
-All CoT data are saved in a structured JSON format, ready for external analysis. The framework is **provider‑agnostic** (DeepSeek/OpenAI/Claude), allowing comparative studies of different LLM architectures.
+All CoT data are saved in a structured JSON format, ready for external analysis. The framework features a **Dynamic Provider Dispatching** architecture, supporting **DeepSeek, OpenAI, Anthropic, and local Ollama** models simultaneously, enabling seamless comparative studies across different LLM families and local inference.
 
 ---
 
@@ -49,23 +70,86 @@ All CoT data are saved in a structured JSON format, ready for external analysis.
 - Modular design, environment-based configuration
 - HTML report with detailed reasoning traces
 - Cross-vehicle negotiation if both choose the same pump
+- **Multi-provider support**: DeepSeek, OpenAI, Anthropic, and **Ollama** (local)
+- **Dynamic Provider Dispatching** – automatically detects available backends at startup and routes each request intelligently, with built‑in observability for mixed‑provider experiments
 
 ## Setup
 
 1. Clone repository
-2. Install dependencies: `pip install -r requirements.txt`
-3. Copy `.env.example` to `.env` and fill in your API keys
+2. Install dependencies: `pip install -r requirements.txt`  
+   (For Ollama, ensure the Ollama service is running locally – no additional Python package required beyond `requests`).
+3. Copy `.env.example` to `.env` and fill in your API keys or enable Ollama (see Configuration below).
 4. Run: `python src/main.py`
 
 ## Configuration
 
-Set environment variables (or use `.env` file):
-- `API_PROVIDER`: deepseek | openai | anthropic
-- `DEEPSEEK_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`
-- `DEEPSEEK_MODEL`, `OPENAI_MODEL`, `ANTHROPIC_MODEL` (optional)
-- `MAX_CONCURRENT`, `API_TIMEOUT`, `SHOW_FULL_COT`
+The system uses a **Dynamic Provider Dispatching** architecture. Instead of hardcoding a single API provider, the simulation runs a lightweight **router** that detects all available LLM backends at startup and dispatches each inference request to one of them dynamically.
+
+This design enables:
+- **Zero‑config A/B testing** across different model families (including local Ollama) without manual intervention.
+- **Fault tolerance** – if a provider is unreachable, it is automatically excluded from the dispatch pool.
+- **Reproducible randomness** – the dispatcher uses a uniform random distribution, but you can seed it for experimental consistency.
+
+### Dynamic Provider Dispatching (How It Works)
+
+1. **Availability Probe**  
+   On startup, the dispatcher scans the environment:
+   - If `OLLAMA_ENABLED=true` and the Ollama service is responsive, it registers the Ollama endpoint.
+   - If `DEEPSEEK_API_KEY` is set (and non‑empty), DeepSeek is registered.
+   - If `OPENAI_API_KEY` is set, OpenAI is registered.
+   - If `ANTHROPIC_API_KEY` is set, Anthropic is registered.
+
+   *Only providers with valid credentials and a reachable endpoint are added to the active pool.*
+
+2. **Request‑Level Routing**  
+   For every individual LLM call (each agent's reasoning step, debate turn, or negotiation message), the dispatcher **picks one provider uniformly at random** from the active pool.  
+   This means:
+   - If you enable all 4 providers, each request has a 25% chance of hitting any specific one.
+   - If you enable only Ollama, 100% of traffic goes local.
+   - If you enable OpenAI + Anthropic, traffic is split 50/50.
+
+3. **Observability & Traceability**  
+   Every reasoning trace (CoT) stored in the output JSON and HTML report is tagged with:
+   - `provider` (e.g., `openai`, `deepseek`, `anthropic`, `ollama`)
+   - `model` (e.g., `gpt-4`, `deepseek-reasoner`, `qwen2.5:7b`)  
+   This allows you to filter and compare performance, bias, and reasoning patterns across providers post‑experiment.
+
+4. **Forcing a Single Provider**  
+   To run a homogeneous experiment (e.g., only Ollama or only GPT‑5), simply **enable only that provider** in your `.env` file. The dispatcher will register a single active provider and route all requests to it.
+
+### Environment Variables
+
+| Variable | Description | Default / Example |
+|----------|-------------|-------------------|
+| **DeepSeek** | | |
+| `DEEPSEEK_API_KEY` | API key for DeepSeek | (your key) |
+| `DEEPSEEK_BASE_URL` | Base URL for DeepSeek API | `https://api.deepseek.com/v1` |
+| `DEEPSEEK_MODEL` | Model name for DeepSeek | `deepseek-chat` (or `deepseek-reasoner`) |
+| **OpenAI** | | |
+| `OPENAI_API_KEY` | API key for OpenAI | (your key) |
+| `OPENAI_BASE_URL` | Base URL for OpenAI API | `https://api.openai.com/v1` |
+| `OPENAI_MODEL` | Model name for OpenAI | `gpt-4` (or `gpt-5.4` if available) |
+| **Anthropic** | | |
+| `ANTHROPIC_API_KEY` | API key for Anthropic | (your key) |
+| `ANTHROPIC_BASE_URL` | Base URL for Anthropic API | `https://api.anthropic.com/v1` |
+| `ANTHROPIC_MODEL` | Model name for Anthropic | `claude-3-opus-20240229` (or `claude-opus-5`) |
+| **Ollama (Local)** | | |
+| `OLLAMA_ENABLED` | Set to `true` to enable Ollama provider | `false` |
+| `OLLAMA_BASE_URL` | Ollama server URL (OpenAI‑compatible endpoint) | `http://localhost:11434/v1` |
+| `OLLAMA_MODEL` | Model name for Ollama | `llama2` (or `qwen2.5:7b`, `mistral`) |
+| **Runtime** | | |
+| `MAX_CONCURRENT` | Max concurrent API calls (per provider pool) | `5` |
+| `API_TIMEOUT` | Timeout (seconds) for each request | `600` |
+| `SHOW_FULL_COT` | Include full CoT in HTML report | `true` |
+| `DISPATCHER_SEED` | (Optional) Seed for random dispatcher to make A/B testing reproducible | (none) |
+
+> **Note**: The legacy `API_PROVIDER` variable is **deprecated** and ignored. The dispatcher automatically handles routing based on the presence of credentials and service availability.
 
 ## Output
 
-- `desert_progress_*.json`: full simulation data
-- `desert_report_*.html`: interactive report with all CoT
+- `desert_progress_*.json`: full simulation data, including all CoT traces and metadata about which provider was used for each agent.
+- `desert_report_*.html`: interactive report with all CoT, decision timelines, and provider labels.
+
+---
+
+Enjoy experimenting with the Monty Hall cognitive bias across diverse LLM families, from cloud APIs to your local Ollama models!

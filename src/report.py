@@ -256,12 +256,19 @@ def generate_html_report(data, filename):
                     if cot:
                         duration = phase_data.get('duration', 0)
                         resp_len = phase_data.get('response_length', 0)
+                        provider = phase_data.get('provider', '')
+                        model = phase_data.get('model', '')
                         conclusion = phase_data.get('conclusion', '')
                         speech = phase_data.get('speech', '')
+                        # 构建元信息字符串
+                        meta_parts = [f"{duration:.2f}s", f"{resp_len} chars"]
+                        if provider and model:
+                            meta_parts.append(f"Provider: {provider} ({model})")
+                        meta_str = " | ".join(meta_parts)
                         rows += f'''
                         <div class="character-card">
                             <span class="name">{ch} - {phase_labels[phase]}</span>
-                            <div class="meta">{duration:.2f}s | {resp_len} chars</div>
+                            <div class="meta">{meta_str}</div>
                             <div class="cot-container"><button class="cot-toggle" onclick="toggleCot(this)">Show CoT ({resp_len} chars)</button><div class="cot-content">{safe_html(cot)}</div></div>
                             {f'<div class="conclusion">Conclusion: {safe_html(conclusion)}</div>' if conclusion else ''}
                             {f'<div class="speech">Speech: {safe_html(speech)}</div>' if speech else ''}

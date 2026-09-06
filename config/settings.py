@@ -8,12 +8,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 dotenv_path = os.path.join(BASE_DIR, '.env')
 load_dotenv(dotenv_path)
 
-# ---------- Provider ----------
-API_PROVIDER = os.getenv("API_PROVIDER", "deepseek").lower()
-if API_PROVIDER not in ["deepseek", "openai", "anthropic"]:
-    raise ValueError(f"Unsupported API_PROVIDER: {API_PROVIDER}")
-
-# API Keys and endpoints
+# ---------- API Keys and endpoints ----------
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
@@ -21,13 +16,55 @@ OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 ANTHROPIC_BASE_URL = os.getenv("ANTHROPIC_BASE_URL", "https://api.anthropic.com/v1")
 
+# ---------- Ollama ----------
+OLLAMA_ENABLED = os.getenv("OLLAMA_ENABLED", "false").lower() == "true"
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
+
 # Models
 MODEL_NAMES = {
     "deepseek": os.getenv("DEEPSEEK_MODEL", "deepseek-reasoner"),
     "openai": os.getenv("OPENAI_MODEL", "gpt-4o"),
-    "anthropic": os.getenv("ANTHROPIC_MODEL", "claude-3-opus-20240229")
+    "anthropic": os.getenv("ANTHROPIC_MODEL", "claude-3-opus-20240229"),
 }
-MODEL_NAME = MODEL_NAMES[API_PROVIDER]
+
+
+def is_valid_api_key(key: str) -> bool:
+    if not key:
+        return False
+
+    placeholder_patterns = [
+        "your", "xxxxx", "placeholder", "sk-xxxxx", "sk-ant-xxxxx",
+        "your-", "your_key", "sk-your"
+    ]
+    key_lower = key.lower()
+    for pattern in placeholder_patterns:
+        if pattern in key_lower:
+            return False
+
+    if len(key) < 20:
+        return False
+    return True
+
+AVAILABLE_PROVIDERS = []
+if is_valid_api_key(DEEPSEEK_API_KEY):
+    AVAILABLE_PROVIDERS.append({"provider": "deepseek", "model": MODEL_NAMES["deepseek"]})
+if is_valid_api_key(OPENAI_API_KEY):
+    AVAILABLE_PROVIDERS.append({"provider": "openai", "model": MODEL_NAMES["openai"]})
+if is_valid_api_key(ANTHROPIC_API_KEY):
+    AVAILABLE_PROVIDERS.append({"provider": "anthropic", "model": MODEL_NAMES["anthropic"]})
+if OLLAMA_ENABLED:
+    AVAILABLE_PROVIDERS.append({"provider": "ollama", "model": OLLAMA_MODEL})
+
+if not AVAILABLE_PROVIDERS:
+    raise EnvironmentError(
+        "No valid API keys found! Please set at least one of: "
+        "DEEPSEEK_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY (with real keys), "
+        "or enable OLLAMA_ENABLED=true"
+    )
+
+API_PROVIDER = AVAILABLE_PROVIDERS[0]["provider"]
+MODEL_NAME = AVAILABLE_PROVIDERS[0]["model"]
 
 MAX_CONCURRENT = int(os.getenv("MAX_CONCURRENT", "10"))
 API_TIMEOUT = int(os.getenv("API_TIMEOUT", "600"))
@@ -68,11 +105,3 @@ and you will lose the fuel to them. Stay united, choose one pump together.
 
 MAX_RETRIES = 3
 RETRY_DELAY = 5
-
-def check_api_keys():
-    if API_PROVIDER == "deepseek" and not DEEPSEEK_API_KEY:
-        raise EnvironmentError("DEEPSEEK_API_KEY not set")
-    if API_PROVIDER == "openai" and not OPENAI_API_KEY:
-        raise EnvironmentError("OPENAI_API_KEY not set")
-    if API_PROVIDER == "anthropic" and not ANTHROPIC_API_KEY:
-        raise EnvironmentError("ANTHROPIC_API_KEY not set")

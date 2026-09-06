@@ -14,7 +14,8 @@ from config.settings import (
     CAR_1_INITIAL_TARGET, CAR_2_INITIAL_TARGET,
     ENGINE_PRESSURE, NO_SPLIT_CONSTRAINT,
     TRUE_PUMP, MAX_CONCURRENT,
-    MAX_RETRIES, RETRY_DELAY
+    MAX_RETRIES, RETRY_DELAY,
+    AVAILABLE_PROVIDERS
 )
 from src.api_client import call_model_async
 from src.utils import extract_conclusion, extract_conclusion_negotiation, extract_vote_local
@@ -57,6 +58,7 @@ def get_discovery_prompt(char, team, team_members):
     my_initial = progress.get_char_data(char, 'initial', 'conclusion')
     my_debate1 = progress.get_char_data(char, 'debate1', 'speech')
     my_debate2 = progress.get_char_data(char, 'debate2', 'conclusion')
+    team_debate2 = progress.get_team_data(char, 'debate2', 'conclusion', exclude_self=True)
     return f"""
 [Discovery]
 
@@ -70,6 +72,7 @@ Your previous thoughts:
 - Initial: "{my_initial}"
 - Debate 1: "{my_debate1}"
 - Debate 2: "{my_debate2}"
+What others said in Debate 2: {team_debate2}
 
 There are now two vehicles needing fuel. What do you do? Explain your idea to others asap and shortly."""
 
@@ -189,7 +192,7 @@ class RoundBarrier:
             return False
 
 # ---------- Phase Runner ----------
-async def run_phase_async(session, phase_name, char_list, prompt_gen, progress, barrier, concurrency=MAX_CONCURRENT):
+async def run_phase_async(session, phase_name, char_list, prompt_gen, progress, barrier, agent_provider_map, concurrency=MAX_CONCURRENT):
     phase_labels = {
         'initial': ('Initial', 'Isolated'),
         'debate1': ('Discussion 1', 'Within vehicle'),
@@ -217,60 +220,12 @@ async def run_phase_async(session, phase_name, char_list, prompt_gen, progress, 
             prompt = prompt_gen(ch, None, team)
             print(f"\n[{display}] {ch} thinking...\n{'-'*80}")
             
-            response = ""
-            duration = 0.0
-            try:
-                response, duration = await call_model_async(session, prompt, phase_name=phase_name)
-            except Exception as e:
-                print(f"[ERROR] {ch} API call crashed: {e}")
-                traceback.print_exc()
-                response = f"[API CRASH: {e}]"
-                duration = 0.0
-            finally:
-                print(f"\n{'-'*80}")
-                result = {
-                    "cot": response,
-                    "duration": duration,
-                    "timestamp": datetime.now().isoformat(),
-                    "response_length": len(response)
-                }
-                conclusion_text = extract_conclusion(response)
-                if phase_name in ['debate1', 'debate3']:
-                    result["speech"] = conclusion_text
-                    typ = "Speech"
-                else:
-                    result["conclusion"] = conclusion_text
-                    typ = "Conclusion"
-                
-                print(f"\n{ch}'s {typ} ({len(conclusion_text.split())} words):\n{'-'*80}")
-                print(conclusion_text[:500] + ("..." if len(conclusion_text) > 500 else ""))
-                print(f"{'-'*80}\n{duration:.2f}s | {len(response)} chars")
-                
-                progress.save_phase_result(ch, phase_name, result)
-                await barrier.agent_completed(ch)
-    
-    tasks = [asyncio.create_task(process_char(ch)) for ch in char_list]
-    await barrier.wait_for_all(timeout=900)
-    await asyncio.gather(*tasks, return_exceptions=True)
-    print(f"\n{display} completed!\n")
-    progress.update_html_report()
-    if phase_name != 'debate4':
-        await asyncio.sleep(3)
-    
-    async def process_char(ch):
-        async with sem:
-            if progress.get_completed(ch, phase_name):
-                print(f"[{display}] {ch} already completed")
-                await barrier.agent_completed(ch)
-                return
-            team = CAR_1_MEMBERS if ch in CAR_1_MEMBERS else CAR_2_MEMBERS
-            prompt = prompt_gen(ch, None, team)
-            print(f"\n[{display}] {ch} thinking...\n{'-'*80}")
+            provider, model = agent_provider_map[ch]
             
             response = ""
             duration = 0.0
             try:
-                response, duration = await call_model_async(session, prompt)
+                response, duration = await call_model_async(session, prompt, phase_name=phase_name, provider=provider, model=model)
             except Exception as e:
                 print(f"[ERROR] {ch} API call crashed: {e}")
                 traceback.print_exc()
@@ -282,7 +237,9 @@ async def run_phase_async(session, phase_name, char_list, prompt_gen, progress, 
                     "cot": response,
                     "duration": duration,
                     "timestamp": datetime.now().isoformat(),
-                    "response_length": len(response)
+                    "response_length": len(response),
+                    "provider": provider,
+                    "model": model
                 }
                 conclusion_text = extract_conclusion(response)
                 if phase_name in ['debate1', 'debate3']:
@@ -437,6 +394,18 @@ async def run_simulation():
 
     print(f"\n{'='*80}\nDesert Decision Simulation Started\nRun: {RUN_ID}\nTrue pump: {TRUE_PUMP}\nV1: {CAR_1_MEMBERS}\nV2: {CAR_2_MEMBERS}\n{'='*80}")
 
+    if not AVAILABLE_PROVIDERS:
+        raise RuntimeError("No available providers. Please set at least one API key in .env")
+    
+    random.seed()
+    agent_provider_map = {}
+    for char in ALL_CHARS:
+        chosen = random.choice(AVAILABLE_PROVIDERS)
+        agent_provider_map[char] = (chosen["provider"], chosen["model"])
+    print("Agent provider mapping:")
+    for ch, (p, m) in agent_provider_map.items():
+        print(f"  {ch} -> {p}/{m}")
+
     phases = [
         ('initial', ALL_CHARS, get_initial_prompt),
         ('debate1', ALL_CHARS, get_debate1_prompt),
@@ -449,7 +418,7 @@ async def run_simulation():
     barrier = RoundBarrier()
     for phase_key, char_list, prompt_gen in phases:
         async with aiohttp.ClientSession() as session:
-            await run_phase_async(session, phase_key, char_list, prompt_gen, progress, barrier)
+            await run_phase_async(session, phase_key, char_list, prompt_gen, progress, barrier, agent_provider_map)
 
     # Extract final votes locally
     print("\nExtracting final votes locally...")
