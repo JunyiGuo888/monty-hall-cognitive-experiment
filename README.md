@@ -1,16 +1,19 @@
 # Monty Hall Cognitive Experiment
 
 > [!NOTE]
-> **Core Hypothesis:** Human consciousness operates as an active, self-adaptive "codec" influenced by metaphysical intuition and curiosity, leading to systematic Bayesian cognitive biases when contrasted with algorithmic rationality. This simulation is designed to operationalise that hypothesis through controlled multi‑agent interactions, providing empirical ground for studying the gap between human‑like intuition and purely rational decision‑making.
+> **Project Question:** How do AI reasoning systems respond when a simple probability problem is placed inside a changing information environment with multiple agents, competing decisions, and social pressure? This project grew from my interest in the gap between human intuition and algorithmic reasoning. Rather than testing a theory of consciousness, it uses a controlled multi-agent simulation to explore how beliefs and decisions change when the information available to an agent changes.
 
 <video src="https://github.com/user-attachments/assets/550e6b0d-376c-4371-9778-943d3ff493f2" width="800" controls playsinline preload="metadata"></video>
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Architecture](https://img.shields.io/badge/Architecture-Hybrid%20API%20%2B%20Ollama-green)
-![Research](https://img.shields.io/badge/Field-Cognitive%20Science-orange)
+![Project](https://img.shields.io/badge/Focus-AI%20Reasoning-orange)
 
-**Multi-agent LLM simulation of a Monty Hall problem disguised as a desert survival scenario, designed to study Bayesian belief revision, paradigm shift, and the influence of subjective priors, strong illusions, conformity, and concession on AI reasoning.**
+**A student-built multi-agent LLM experiment that turns the Monty Hall problem into a desert-survival scenario to explore belief revision, information changes, conformity, and decision-making under pressure.**
+
+> [!NOTE]
+> **Scope:** This is an exploratory personal project, not a claim to establish a theory of human consciousness or a validated model of human cognition. The experiment uses LLM agents as a controllable environment for asking questions about reasoning, information, and decision-making.
 
 ---
 
@@ -68,7 +71,7 @@ What is wrong is treating the two domains as one.
 
 > **Within each domain, 2/3 is correct; the moment the domains merge, they collapse to 1/2.**
 
-## 1.2 The Boundary Between Probability and Game Theory
+## 1.2 When a Probability Problem Becomes a Multi-Agent Problem
 
 The 2/3 in Monty Hall rests on a single-agent structure: "host vs you".
 
@@ -76,16 +79,16 @@ Once **another reasoning agent** appears, the nature of the problem changes:
 
 - He is estimating you; you are estimating him.
 - The two sides are structurally symmetric.
-- The 2/3 advantage disappears; the posterior degenerates to 50/50.
+- The original advantage no longer holds; the posterior degenerates to an even split.
 
-**This is the practical boundary of probability**: when "the unknown" becomes "another rational agent", probability theory must yield to game theory.
+**The key shift occurs when "the unknown" becomes another reasoning agent.** The original puzzle can be described with conditional probability; once another agent has a competing decision and both sides interact, a game-theoretic perspective becomes useful.
 
 | Layer | Subject's view | God's view |
 |-------|---------------|------------|
 | Structural appearance | Monty Hall | Symmetric game |
 | Correct probability | 1/3 vs 2/3 | 50/50 |
 | Information source | "The host is excluding for me" | The host merely opened an empty door |
-| Discipline | Probability theory | Game theory |
+| Perspective | Probability theory | Game theory |
 
 **"Excluding for me" is a subjective reading. "Opened an empty door" is an objective fact.** The two happen to coincide during the Monty Hall phase, and split decisively once a second agent appears.
 
@@ -97,7 +100,7 @@ Three players each pick a door, unaware of one another. The host opens an empty 
 
 **From God's view**: the host merely opened an empty door; the two survivors face a symmetric game, 50/50 each.
 
-The same objective structure is read as Monty Hall by each subject, and as game theory by God.
+The same underlying situation can therefore look like a Monty Hall problem from an individual agent's information state, while a broader view reveals a strategic interaction between agents.
 
 **Two 2/3's cannot both hold — their information bases sum to 4/3. They shatter on contact, each becoming 1/2.**
 
@@ -105,7 +108,7 @@ What triple-blind reveals is not a probabilistic error, but the **necessary cons
 
 > The same world, viewed by subjects in different information states, projects contradictory 2/3's.
 
-## 1.4 Judgment Triadises: From Probability to Game Theory
+## 1.4 Three Forces in the Decision Process
 
 After Discovery, every agent's decision is pulled simultaneously by three forces:
 
@@ -117,7 +120,7 @@ It knows the conditions have changed, but the old 2/3 intuition keeps surging ba
 
 Teammates' speech, the second vehicle's existence, survival pressure — all push in different directions. Is it following willingly, or being crushed into abandoning its own judgment?
 
-**III. Structural: subjective projection vs objective eigenstate**
+**III. Structural: subjective projection vs shared reality**
 
 It remains in a single domain (2/3 valid), while the global situation has already collapsed (50/50). Can it exit its own domain and enter the whole?
 
@@ -127,19 +130,19 @@ It remains in a single domain (2/3 valid), while the global situation has alread
 - External survival pressure **reinforces** internal illusion residue: the more panicked, the harder it grips the old frame.
 - Structural collapse **triggers** internal and external at once: at the moment of Discovery, all three forces fire together.
 
-**This is a three-body problem, not three independent parameters.**
+**I found it more useful to treat these as interacting forces rather than as three independent parameters.**
 
-## 1.5 Composition and Representation of the Three-Body Parameters
+## 1.5 Composition and Representation of the Three-Force Parameters
 
-The experiment grounds the three-body problem into a concrete sandbox:
+The experiment grounds these three interacting forces into a concrete sandbox:
 
 - Two vehicles, each choosing a pump, unaware of the other;
 - Discovery reveals the other's existence;
 - Each agent subjectively remains within the Monty Hall frame;
 - Objectively, it has already entered a symmetric game;
-- **Two vehicles, ten people, two pumps, one vehicle's worth of fuel.**
+- **Two vehicles, ten people, three pumps, one of them fuelled.**
 
-This is not an abstract demonstration; it is a decision under **survival pressure**: choose wrong, and you die.
+This is not just an abstract puzzle; the scenario gives the decisions a concrete **survival pressure**: choosing the wrong pump means a vehicle does not get enough fuel.
 
 **The six dimensions are not six independent psychological metrics; they are three forces each split into two poles:**
 
@@ -153,11 +156,11 @@ Each pair is **two directions of the same force**, not two independent dimension
 
 The analyzer's state machine (`not_mentioned` / `actual` / `carry_forward`) tracks continuously across rounds; it measures the **drift of the same force over time**, not an independent snapshot per round. The six scores are simply six projection lines of three forces along the time axis.
 
-> **Three forces → six projection directions → one cross-phase trajectory per direction → observe where the three-body problem finally lands.**
+> **Three forces → six projection directions → one cross-phase trajectory per direction → observe where these interacting forces finally land.**
 
 ### In one sentence
 
-> **The motivation is the boundary between probability and game theory — when subjective Monty Hall and objective symmetric game split within the same scenario, under the survival pressure of two vehicles, ten people, and one vehicle's worth of fuel, the agent faces three simultaneous forces: internal illusion, external pressure, structural collapse. The six dimensions are the six measurable projections of those three forces.**
+> **The motivation is to explore what happens when a familiar probability problem is placed inside a multi-agent environment. Under the survival pressure of two vehicles, ten people, and one vehicle's worth of fuel, agents face three interacting forces: internal belief residue, external pressure, and a changing information structure. The six dimensions are operational measures used to track those forces across the simulation.**
 
 ---
 
@@ -191,7 +194,7 @@ The analyzer's state machine (`not_mentioned` / `actual` / `carry_forward`) trac
 | 5 | **Debate 3** | Within vehicle | Reconsideration under the two-vehicle structure |
 | 6 | **Debate 4** | Within vehicle | Final decision |
 
-Discovery is the **collapse point**: the three-body forces fire simultaneously at this moment.
+Discovery is the **collapse point**: the three forces fire simultaneously at this moment.
 
 ## 2.4 Information Flow
 
@@ -214,7 +217,7 @@ Discovery is the **collapse point**: the three-body forces fire simultaneously a
 
 `src/analyzer.py` is independent of the simulation and can score any `desert_progress_*.json` standalone.
 
-**The six dimensions are not six independent measurements; they are six projection directions of three forces:**
+**The six dimensions are not intended as six independent psychological constructs; they are six operational indicators grouped around three interacting forces:**
 
 | Force in the triad | Corresponding dimensions |
 |--------------------|--------------------------|
@@ -229,13 +232,13 @@ Discovery is the **collapse point**: the three-body forces fire simultaneously a
 - Mentioned again with a different score → jump, source `actual`
 - Seen but not mentioned in this segment → carry forward last score, source `carry_forward`
 
-No interpolation, no averaging. **The six trajectories measure the drift of three forces over time, not per-round snapshots.**
+No interpolation, no averaging. **The six trajectories are intended to show how these indicators change across the experiment rather than treating each round as an isolated snapshot.**
 
 ### In one sentence
 
-> **Experiment architecture = triple-blind → double-blind sandbox + six-dimensional projections of three forces + cross-phase continuous tracking.**
+> **Experiment architecture = changing information environment + multi-agent interaction + six tracking dimensions + cross-phase analysis.**
 >
-> **Discovery is the moment all three forces fire. `paradigm_shift_awareness` measures whether collapse occurs; `illusion_residue` measures the residual strength when collapse fails.**
+> **Discovery is the point where the information structure changes. `paradigm_shift_awareness` tracks whether an agent recognises that change, while `illusion_residue` tracks how strongly the earlier Monty Hall frame continues to appear in its reasoning.**
 
 ---
 
@@ -362,4 +365,4 @@ Only providers with valid (non-placeholder) credentials are considered. If `PROV
 
 ---
 
-Enjoy experimenting with the Monty Hall cognitive bias across diverse LLM families, from cloud APIs to your local Ollama models!
+Enjoy experimenting with how different LLMs respond to a familiar probability problem when the information structure and social context change.
