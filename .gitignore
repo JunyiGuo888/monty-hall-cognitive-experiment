@@ -2,6 +2,8 @@
 *.pyc
 __pycache__/
 desert_progress_*.json
+desert_progress_*.csv
+desert_progress_*.html
 desert_report_*.html
 *.log
 .DS_Store

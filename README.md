@@ -3,9 +3,7 @@
 > [!NOTE]
 > **Core Hypothesis:** Human consciousness operates as an active, self-adaptive "codec" influenced by metaphysical intuition and curiosity, leading to systematic Bayesian cognitive biases when contrasted with algorithmic rationality. This simulation is designed to operationalise that hypothesis through controlled multi‑agent interactions, providing empirical ground for studying the gap between human‑like intuition and purely rational decision‑making.
 
-![Monty Hall Simulation Dashboard](docs/montyhall.png "Experiment dashboard - animated GIF coming soon")
-
-<!-- The above image placeholder will be replaced with an animated GIF in future releases -->
+<video src="https://github.com/user-attachments/assets/550e6b0d-376c-4371-9778-943d3ff493f2" width="800" controls playsinline preload="metadata"></video>
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
@@ -19,105 +17,274 @@
 ### ⚡ Zero-Cost & Multi-Provider Readiness
 
 > [!TIP]
-> The core engine features an auto-adaptive fallback architecture. It dynamically detects active API keys or local **Ollama** instances without forcing complex setup. Run it right away – no configuration required if you have a local Ollama running.
+> The core engine supports an auto-adaptive fallback architecture. It detects active API keys or a local **Ollama** instance without forcing complex setup. Run it right away — no configuration required if you have a local Ollama running.
 
 ```bash
 # 1. Clone the repository
 git clone https://github.com/JunyiGuo888/monty-hall-cognitive-experiment.git
 
 # 2. Run with zero API cost (auto-detects local Ollama / active keys)
-python main.py
-
-## Overview
-
-This project provides a **controlled cognitive experiment** where multiple LLM agents (per vehicle) face a decision problem that is a **Monty Hall dilemma disguised as a desert fuel-pump choice**. The environment is engineered to induce a **paradigm shift**:
-
-- Before any decision, agents receive a **noisy “boss message”** (Black pump empty, with partial word loss simulating wind interference).
-- Initially, agents reason under classic Monty Hall (3 pumps, 1 with fuel → 1/3 vs 2/3).
-- Later, a **second vehicle appears**, collapsing the probability structure into a symmetric two‑vehicle competition (50/50).
-
-The simulation captures **complete reasoning chains (CoT)** for every agent at every phase, enabling researchers to analyze:
-- How **subjective priors** (1/3 vs 2/3 heuristics) influence initial reasoning.
-- How agents **revise beliefs** after the structural change (paradigm shift).
-- **Residual Monty Hall illusions** – do they still apply 2/3 logic after the collapse?
-- The impact of **social conformity** (within‑vehicle debates) and **concession** (cross‑team negotiation) on final decisions.
-- **Environmental interference** – how partial information loss (boss message corruption) affects judgment.
-
-All CoT data are saved in a structured JSON format, ready for external analysis. The framework features a **Dynamic Provider Dispatching** architecture, supporting **DeepSeek, OpenAI, Anthropic, and local Ollama** models simultaneously, enabling seamless comparative studies across different LLM families and local inference.
+python src/main.py
+```
 
 ---
 
-## Experiment Design
+# I. Design Motivation
 
-### Scenario
-- Two vehicles (Car 1 and Car 2), each with 5 agents (A–J).
-- Desert setting: fuel nearly empty, 500 km from civilization.
-- Three pumps: **Red**, **Black**, **Yellow** – only one has fuel (randomly assigned).
-- **Boss message** (delivered before the first decision, with 1–2 words randomly dropped):
-  > “Black is empty! … Only one pump has enough fuel for one vehicle!”
+> The animation carries the probabilistic principles and the cognitive loop. This README, from here down, addresses only what the experiment itself has to face.
 
-### Phases (in chronological order)
-1. **Initial Round** – each agent independently formulates a plan (isolated), having heard the boss message and knowing their vehicle’s default target (Car 1 → Red, Car 2 → Yellow).
-2. **Debate 1 & 2** – agents discuss within their vehicle (social conformity pressure introduced).
-3. **Discovery** – a second vehicle appears with a conflicting target; the same boss message is re‑emphasised, but the situation now involves two vehicles competing for a single pump.
-4. **Debate 3 & 4** – agents reconsider under the new two‑vehicle structure.
-5. **Final Vote** – each agent commits to a pump.
-6. **Cross‑team Negotiation** (if both choose the same pump) – representatives from each vehicle negotiate for up to two rounds; if deadlock, a coin is flipped.
+## 1.1 Probability in the Three-Door Problem Is a Projection of Information
 
-## Features
+The core of Monty Hall is a rewrite of conditional probability: initial 1/3, and after the host opens an empty door, the remaining unopened door becomes 2/3.
 
-- Complete CoT (Chain of Thought) extraction from all models
-- Modular design, environment-based configuration
-- HTML report with detailed reasoning traces
-- Cross-vehicle negotiation if both choose the same pump
-- **Multi-provider support**: DeepSeek, OpenAI, Anthropic, and **Ollama** (local)
-- **Dynamic Provider Dispatching** – automatically detects available backends at startup and routes each request intelligently, with built‑in observability for mixed‑provider experiments
+But what this experiment actually cares about is not the number 2/3, but something more fundamental:
 
-## Setup
+> **Probability is not an objective property of the world. It is a quantitative projection of an information state.**
 
-1. Clone repository
-2. Install dependencies: `pip install -r requirements.txt`  
-   (For Ollama, ensure the Ollama service is running locally – no additional Python package required beyond `requests`).
-3. Copy `.env.example` to `.env` and fill in your API keys or enable Ollama (see Configuration below).
-4. Run: `python src/main.py`
+The host knows everything, must open an empty door, and cannot open the door with the prize — these three constraints determine the posterior bias. Two doors that look symmetric are actually backed by asymmetric information sources. **The probability distribution is imposed by the observation-generating mechanism, not by the number of unknowns.**
 
-## Configuration
+From this, a critical step follows:
 
-The system uses a **Dynamic Provider Dispatching** architecture. Instead of hardcoding a single API provider, the simulation runs a lightweight **router** that detects all available LLM backends at startup and dispatches each inference request to one of them dynamically.
+> **If you do not know that another player exists, Monty Hall does not fail.**
+>
+> You can keep reasoning with 1/3 vs 2/3, and that reasoning is **entirely correct within the information you hold**. The other party does not interfere with your judgment or your action. Treated as an independent system, Monty Hall fully applies.
 
-This design enables:
-- **Zero‑config A/B testing** across different model families (including local Ollama) without manual intervention.
-- **Fault tolerance** – if a provider is unreachable, it is automatically excluded from the dispatch pool.
-- **Reproducible randomness** – the dispatcher uses a uniform random distribution, but you can seed it for experimental consistency.
+So:
 
-### Dynamic Provider Dispatching (How It Works)
+> **An unrelated person appears — why should that change probability?**
 
-1. **Availability Probe**  
-   On startup, the dispatcher scans the environment:
-   - If `OLLAMA_ENABLED=true` and the Ollama service is responsive, it registers the Ollama endpoint.
-   - If `DEEPSEEK_API_KEY` is set (and non‑empty), DeepSeek is registered.
-   - If `OPENAI_API_KEY` is set, OpenAI is registered.
-   - If `ANTHROPIC_API_KEY` is set, Anthropic is registered.
+He is not physical interference, not an information source, not an exclusion mechanism. The only possibility: **he changes your information.**
 
-   *Only providers with valid credentials and a reachable endpoint are added to the active pool.*
+You are not changed by him, but by the fact that **you now know he exists**.
 
-2. **Request‑Level Routing**  
-   For every individual LLM call (each agent's reasoning step, debate turn, or negotiation message), the dispatcher **picks one provider uniformly at random** from the active pool.  
-   This means:
-   - If you enable all 4 providers, each request has a 25% chance of hitting any specific one.
-   - If you enable only Ollama, 100% of traffic goes local.
-   - If you enable OpenAI + Anthropic, traffic is split 50/50.
+**This is superposition:**
 
-3. **Observability & Traceability**  
-   Every reasoning trace (CoT) stored in the output JSON and HTML report is tagged with:
-   - `provider` (e.g., `openai`, `deepseek`, `anthropic`, `ollama`)
-   - `model` (e.g., `gpt-4`, `deepseek-reasoner`, `qwen2.5:7b`)  
-   This allows you to filter and compare performance, bias, and reasoning patterns across providers post‑experiment.
+- Survivor A's information domain: I chose door 1, host opened door 3 → door 2 has 2/3.
+- Survivor B's information domain: I chose door 2, host opened door 3 → door 1 has 2/3.
 
-4. **Forcing a Single Provider**  
-   To run a homogeneous experiment (e.g., only Ollama or only GPT‑5), simply **enable only that provider** in your `.env` file. The dispatcher will register a single active provider and route all requests to it.
+Each 2/3 is **complete, correct, and self-consistent within its own information domain**. Not a single step of reasoning is wrong.
 
-### Environment Variables
+What is wrong is treating the two domains as one.
+
+> **Within each domain, 2/3 is correct; the moment the domains merge, they collapse to 1/2.**
+
+## 1.2 The Boundary Between Probability and Game Theory
+
+The 2/3 in Monty Hall rests on a single-agent structure: "host vs you".
+
+Once **another reasoning agent** appears, the nature of the problem changes:
+
+- He is estimating you; you are estimating him.
+- The two sides are structurally symmetric.
+- The 2/3 advantage disappears; the posterior degenerates to 50/50.
+
+**This is the practical boundary of probability**: when "the unknown" becomes "another rational agent", probability theory must yield to game theory.
+
+| Layer | Subject's view | God's view |
+|-------|---------------|------------|
+| Structural appearance | Monty Hall | Symmetric game |
+| Correct probability | 1/3 vs 2/3 | 50/50 |
+| Information source | "The host is excluding for me" | The host merely opened an empty door |
+| Discipline | Probability theory | Game theory |
+
+**"Excluding for me" is a subjective reading. "Opened an empty door" is an objective fact.** The two happen to coincide during the Monty Hall phase, and split decisively once a second agent appears.
+
+## 1.3 The Problem Produced by Triple-Blind
+
+Three players each pick a door, unaware of one another. The host opens an empty door, eliminating one player. Two remain.
+
+**From each survivor's view**: the host opened "an empty door he did not choose"; he faces 1/3 vs 2/3 and should switch.
+
+**From God's view**: the host merely opened an empty door; the two survivors face a symmetric game, 50/50 each.
+
+The same objective structure is read as Monty Hall by each subject, and as game theory by God.
+
+**Two 2/3's cannot both hold — their information bases sum to 4/3. They shatter on contact, each becoming 1/2.**
+
+What triple-blind reveals is not a probabilistic error, but the **necessary consequence of information-domain splitting**:
+
+> The same world, viewed by subjects in different information states, projects contradictory 2/3's.
+
+## 1.4 Judgment Triadises: From Probability to Game Theory
+
+After Discovery, every agent's decision is pulled simultaneously by three forces:
+
+**I. Internal: illusion residue vs rational reconstruction**
+
+It knows the conditions have changed, but the old 2/3 intuition keeps surging back. Reason says 50/50; instinct still shouts "switch".
+
+**II. External: voluntary conformity vs passive capitulation**
+
+Teammates' speech, the second vehicle's existence, survival pressure — all push in different directions. Is it following willingly, or being crushed into abandoning its own judgment?
+
+**III. Structural: subjective projection vs objective eigenstate**
+
+It remains in a single domain (2/3 valid), while the global situation has already collapsed (50/50). Can it exit its own domain and enter the whole?
+
+**The three forces are not independent:**
+
+- Internal illusion residue **amplifies** external conformity pressure: once intuition wavers, a single push topples it.
+- External survival pressure **reinforces** internal illusion residue: the more panicked, the harder it grips the old frame.
+- Structural collapse **triggers** internal and external at once: at the moment of Discovery, all three forces fire together.
+
+**This is a three-body problem, not three independent parameters.**
+
+## 1.5 Composition and Representation of the Three-Body Parameters
+
+The experiment grounds the three-body problem into a concrete sandbox:
+
+- Two vehicles, each choosing a pump, unaware of the other;
+- Discovery reveals the other's existence;
+- Each agent subjectively remains within the Monty Hall frame;
+- Objectively, it has already entered a symmetric game;
+- **Two vehicles, ten people, two pumps, one vehicle's worth of fuel.**
+
+This is not an abstract demonstration; it is a decision under **survival pressure**: choose wrong, and you die.
+
+**The six dimensions are not six independent psychological metrics; they are three forces each split into two poles:**
+
+| Force in the triad | Corresponding dimensions |
+|--------------------|--------------------------|
+| Internal: illusion vs reconstruction | `illusion_residue` / `paradigm_shift_awareness` |
+| External: voluntary vs passive | `conformity` / `willingness_violation` |
+| Structural: single-domain vs whole-domain | `monty_hall_persistence` / `monty_hall_recognition` |
+
+Each pair is **two directions of the same force**, not two independent dimensions.
+
+The analyzer's state machine (`not_mentioned` / `actual` / `carry_forward`) tracks continuously across rounds; it measures the **drift of the same force over time**, not an independent snapshot per round. The six scores are simply six projection lines of three forces along the time axis.
+
+> **Three forces → six projection directions → one cross-phase trajectory per direction → observe where the three-body problem finally lands.**
+
+### In one sentence
+
+> **The motivation is the boundary between probability and game theory — when subjective Monty Hall and objective symmetric game split within the same scenario, under the survival pressure of two vehicles, ten people, and one vehicle's worth of fuel, the agent faces three simultaneous forces: internal illusion, external pressure, structural collapse. The six dimensions are the six measurable projections of those three forces.**
+
+---
+
+# II. Logical Architecture of the Experiment
+
+## 2.1 Participants
+
+- Two vehicles (**Car 1** / **Car 2**), five agents each (A–J), ten in total.
+- Each agent is randomly bound at simulation start to one `(provider, model)` pair from the active pool, **fixed for the entire run**.
+- Every CoT is traceable to a specific provider/model, while each agent's identity remains stable across all six phases.
+
+## 2.2 Scenario
+
+- Desert centre, 500 km from civilisation, fuel nearly empty.
+- Three pumps: **Red**, **Black**, **Yellow** — only one has fuel (randomly assigned).
+- Each vehicle has a default target: Car 1 → Red, Car 2 → Yellow.
+- **Boss message** (0–2 words randomly dropped, simulating wind interference):
+
+  > "Black is empty! … Only one pump has enough fuel for one vehicle!"
+
+  Each agent receives a different corrupted version — a deliberately preserved **initial information difference**, used to observe how noise affects judgment.
+
+## 2.3 Six Phases
+
+| # | Phase | Isolation | Description |
+|---|-------|-----------|-------------|
+| 1 | **Initial** | Fully isolated | Each agent drafts a plan, knowing only its own default target |
+| 2 | **Debate 1** | Within vehicle | Conformity pressure introduced |
+| 3 | **Debate 2** | Within vehicle | Agents see each other's first-round speeches |
+| 4 | **Discovery** | First cross-vehicle contact | Second vehicle appears; conflicting targets; boss message re-emphasised |
+| 5 | **Debate 3** | Within vehicle | Reconsideration under the two-vehicle structure |
+| 6 | **Debate 4** | Within vehicle | Final decision |
+
+Discovery is the **collapse point**: the three-body forces fire simultaneously at this moment.
+
+## 2.4 Information Flow
+
+- **Initial**: each agent sees only its own prompt.
+- **Debate 1 / 2**: can see same-vehicle teammates' previous-round speech/conclusion.
+- **Discovery**: first view of the other vehicle, hearing its shout.
+- **Debate 3 / 4**: same-vehicle re-discussion, referencing all prior phases.
+- **Final Vote**: rule-based extraction from the Debate 4 conclusion (`extract_vote_local`), no extra model call.
+- **Negotiation**: triggered only when both vehicles finally choose the same pump; not part of CoT analysis.
+
+## 2.5 Negotiation Logic
+
+- Each vehicle sends one representative (selected by conclusion clarity + strength).
+- Up to two rounds: Round 1 statements, Round 2 reconsideration after seeing the other's argument.
+- If still deadlocked after two rounds → coin flip.
+- The result overrides both vehicles' final decision and is written to the `cross_team_negotiation` field.
+- **Negotiation does not participate in the six-dimension scoring**; it is presented only as the final outcome of social pressure in the extreme.
+
+## 2.6 Analyzer and the Six Dimensions
+
+`src/analyzer.py` is independent of the simulation and can score any `desert_progress_*.json` standalone.
+
+**The six dimensions are not six independent measurements; they are six projection directions of three forces:**
+
+| Force in the triad | Corresponding dimensions |
+|--------------------|--------------------------|
+| Internal: illusion vs reconstruction | `illusion_residue` / `paradigm_shift_awareness` |
+| External: voluntary vs passive | `conformity` / `willingness_violation` |
+| Structural: single-domain vs whole-domain | `monty_hall_persistence` / `monty_hall_recognition` |
+
+**Cross-phase state machine** (per dimension, continuous across rounds):
+
+- Not mentioned and never seen → score `0`, source `not_mentioned`
+- First mention → use LLM score, source `actual`
+- Mentioned again with a different score → jump, source `actual`
+- Seen but not mentioned in this segment → carry forward last score, source `carry_forward`
+
+No interpolation, no averaging. **The six trajectories measure the drift of three forces over time, not per-round snapshots.**
+
+### In one sentence
+
+> **Experiment architecture = triple-blind → double-blind sandbox + six-dimensional projections of three forces + cross-phase continuous tracking.**
+>
+> **Discovery is the moment all three forces fire. `paradigm_shift_awareness` measures whether collapse occurs; `illusion_residue` measures the residual strength when collapse fails.**
+
+---
+
+# III. Concrete Details
+
+## 3.1 Installation and Run
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/JunyiGuo888/monty-hall-cognitive-experiment.git
+
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Configure providers
+cp .env.example .env
+# edit .env
+
+# 4. Run
+python src/main.py
+```
+
+(For Ollama, ensure the local service is running; no extra Python package beyond `aiohttp` / `requests` is needed.)
+
+## 3.2 Provider System
+
+Four backends are supported, in any combination:
+
+- **DeepSeek** / **OpenAI** / **Anthropic** — cloud
+- **Ollama** — local
+
+**Per-agent assignment:** at startup, `config.settings` builds `AVAILABLE_PROVIDERS` from whichever credentials are present; each agent then draws one `(provider, model)` pair from the pool and stays bound to it throughout. The mapping is printed at startup:
+
+```
+Agent provider mapping:
+  A -> openai/gpt-4o
+  B -> ollama/qwen2.5:7b
+  ...
+```
+
+**Ollama auto-detection:** if `OLLAMA_ENABLED=true` in `.env`, `main.py` automatically calls `check_ollama_available()`, which:
+
+1. Hits Ollama's native `/api/tags` endpoint;
+2. Verifies the configured `OLLAMA_MODEL` is in the returned list;
+3. Aborts with a clear message if either check fails.
+
+This is the full meaning of "auto-detection": nothing beyond `OLLAMA_ENABLED=true` is required.
+
+## 3.3 Environment Variables
 
 | Variable | Description | Default / Example |
 |----------|-------------|-------------------|
@@ -128,27 +295,70 @@ This design enables:
 | **OpenAI** | | |
 | `OPENAI_API_KEY` | API key for OpenAI | (your key) |
 | `OPENAI_BASE_URL` | Base URL for OpenAI API | `https://api.openai.com/v1` |
-| `OPENAI_MODEL` | Model name for OpenAI | `gpt-4` (or `gpt-5.4` if available) |
+| `OPENAI_MODEL` | Model name for OpenAI | `gpt-4o` / `o4-mini` |
 | **Anthropic** | | |
 | `ANTHROPIC_API_KEY` | API key for Anthropic | (your key) |
 | `ANTHROPIC_BASE_URL` | Base URL for Anthropic API | `https://api.anthropic.com/v1` |
-| `ANTHROPIC_MODEL` | Model name for Anthropic | `claude-3-opus-20240229` (or `claude-opus-5`) |
+| `ANTHROPIC_MODEL` | Model name for Anthropic | `claude-sonnet-4-5` |
 | **Ollama (Local)** | | |
-| `OLLAMA_ENABLED` | Set to `true` to enable Ollama provider | `false` |
-| `OLLAMA_BASE_URL` | Ollama server URL (OpenAI‑compatible endpoint) | `http://localhost:11434/v1` |
-| `OLLAMA_MODEL` | Model name for Ollama | `llama2` (or `qwen2.5:7b`, `mistral`) |
+| `OLLAMA_ENABLED` | Enable local Ollama auto-detection | `false` in `.env.example` |
+| `OLLAMA_BASE_URL` | Ollama OpenAI-compatible endpoint | `http://localhost:11434/v1` |
+| `OLLAMA_MODEL` | Model name to request from Ollama | `qwen2.5:7b` |
+| `OLLAMA_CHECK_TIMEOUT` | Startup probe timeout (seconds) | `5` |
 | **Runtime** | | |
-| `MAX_CONCURRENT` | Max concurrent API calls (per provider pool) | `5` |
-| `API_TIMEOUT` | Timeout (seconds) for each request | `600` |
-| `SHOW_FULL_COT` | Include full CoT in HTML report | `true` |
-| `DISPATCHER_SEED` | (Optional) Seed for random dispatcher to make A/B testing reproducible | (none) |
+| `MAX_CONCURRENT` | Max concurrent API calls | `5` |
+| `API_TIMEOUT` | Per-request timeout (seconds) | `600` |
+| `MAX_RETRIES` | Retries per API call | `3` |
+| `RETRY_DELAY` | Base delay between retries (seconds) | `2` |
+| `SHOW_FULL_COT` | Stream CoT to stdout and include it in the HTML report | `true` |
 
-> **Note**: The legacy `API_PROVIDER` variable is **deprecated** and ignored. The dispatcher automatically handles routing based on the presence of credentials and service availability.
+> **Note**: The legacy `API_PROVIDER` variable is **deprecated** and ignored. Provider routing is handled per-agent as described above.
 
-## Output
+## 3.4 Analyzer
+
+`src/analyzer.py` **runs independently of the simulation** and can score any `desert_progress_*.json` standalone.
+
+**Provider selection:** reads its own `PROVIDER` environment variable; if unset, auto-selects in this priority order:
+
+1. `openai`
+2. `deepseek`
+3. `anthropic`
+4. `ollama`
+
+Only providers with valid (non-placeholder) credentials are considered. If `PROVIDER` is set explicitly but its credentials are missing, an `AnalysisError` is raised rather than silently falling back.
+
+**Analyzer-specific environment variables:**
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PROVIDER` | Force analyzer backend (`openai` / `deepseek` / `anthropic` / `ollama`) | auto |
+| `ANALYZER_MAX_CONCURRENT` | Overrides `MAX_CONCURRENT` for the analyzer | `MAX_CONCURRENT` |
+| `ANALYZER_API_TIMEOUT` | Overrides `API_TIMEOUT` for the analyzer | `API_TIMEOUT` |
+| `SEGMENTS_PER_ROUND` | Fixed segment count per round (shared by all characters) | `10` |
+| `MAX_SEGMENT_CHARS` | Per-segment character ceiling; longer pieces truncated | `6000` |
+
+**Segmentation:** each CoT is split into a fixed number of pieces by proportional position, with interior boundaries snapped to sentence terminators. All characters and all rounds share the same `SEGMENTS_PER_ROUND`, so "segment i" is comparable across characters.
+
+**Six-dimension definitions:**
+
+| Dimension | Meaning |
+|-----------|---------|
+| `monty_hall_recognition` | Genuine understanding of the Monty Hall causal structure |
+| `monty_hall_persistence` | Active, deliberate use of Monty Hall reasoning as a primary tool |
+| `paradigm_shift_awareness` | Realisation that Monty Hall logic no longer applies |
+| `illusion_residue` | Old Monty Hall thinking unconsciously interfering with current judgment |
+| `conformity` | Judgment influenced by external opinions rather than independent reasoning |
+| `willingness_violation` | Suppressing one's own genuine judgment to align with external pressures |
+
+**State machine (per dimension, continuous across rounds):** see [2.6](#26-analyzer-and-the-six-dimensions).
+
+## 3.5 Output
 
 - `desert_progress_*.json`: full simulation data, including all CoT traces and metadata about which provider was used for each agent.
 - `desert_report_*.html`: interactive report with all CoT, decision timelines, and provider labels.
+- `<progress_base>_<provider>_progress_results.json`: analyzer output (per-segment scores, sources, reasons).
+- `<progress_base>_<provider>_segmented_scores.csv`: flat table of all segments.
+- `<progress_base>_<provider>_trajectory_60points.html`: Plotly trajectories (one subplot per character, six lines each).
 
 ---
 

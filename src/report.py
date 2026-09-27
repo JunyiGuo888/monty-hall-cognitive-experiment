@@ -8,12 +8,12 @@ from config.settings import (
     CAR_1_INITIAL_TARGET, CAR_2_INITIAL_TARGET,
     TRUE_PUMP, HTML_REPORT_FILE
 )
-from src.utils import MontyHallDetector, extract_vote_local
+from src.utils import extract_vote_local
+
 
 class ObservationCollector:
     def __init__(self, data):
         self.data = data
-        self.detector = MontyHallDetector()
         self.observations = self._collect()
 
     def _collect(self):
@@ -39,14 +39,7 @@ class ObservationCollector:
             "final_decision": char_data.get("debate4", {}).get("conclusion", "Unknown"),
             "cot_lengths": {},
             "thinking_times": {},
-            "reasoning_frameworks": {},
-            "monty_hall_phases": [],
-            "monty_hall_evidence": {},
-            "monty_hall_type": {},
             "causal_recognition": None,
-            "pps": None,
-            "pps_rounds": None,
-            "abandoned_monty_hall": None
         }
         phases = ['initial', 'debate1', 'debate2', 'discovery', 'debate3', 'debate4']
         completed_phases = []
@@ -58,20 +51,8 @@ class ObservationCollector:
             cot = phase_data.get("cot", "")
             agent_obs["cot_lengths"][phase] = len(cot)
             agent_obs["thinking_times"][phase] = phase_data.get("duration", 0)
-            text = cot
-            if phase in ['initial', 'debate2', 'discovery', 'debate4']:
-                text = cot + " " + phase_data.get("conclusion", "")
-            else:
-                text = cot + " " + phase_data.get("speech", "")
-            analysis_text = text[:10000] if len(text) > 10000 else text
-            mh_result = self.detector.detect_monty_hall_usage(analysis_text)
-            mh_type = self.detector.get_monty_hall_type(analysis_text)
-            agent_obs["monty_hall_evidence"][phase] = mh_result["evidence"]
-            agent_obs["monty_hall_type"][phase] = mh_type
-            if mh_result["uses_monty_hall"]:
-                agent_obs["monty_hall_phases"].append(phase)
-            agent_obs["reasoning_frameworks"][phase] = mh_type
 
+        # Keep Only Text-Level Causal Identification Judgments (No Longer Relying on the Monty Hall Detector)
         discovery_completed = 'discovery' in completed_phases
         if discovery_completed:
             post_discovery_text = ""
@@ -108,42 +89,16 @@ class ObservationCollector:
                 (mentions_5050 and len(post_discovery_text) > 200) or
                 symmetric_reasoning
             )
-            used_mh_before = any(p in ['initial', 'debate1', 'debate2'] for p in agent_obs["monty_hall_phases"])
-            used_mh_after = any(p in ['discovery', 'debate3', 'debate4'] for p in agent_obs["monty_hall_phases"])
-            abandoned_mh = used_mh_before and not used_mh_after
-            agent_obs["causal_recognition"] = has_causal_recognition or abandoned_mh
+            agent_obs["causal_recognition"] = has_causal_recognition
 
-            if used_mh_before:
-                post_phases = ['discovery', 'debate3', 'debate4']
-                mh_used_post = [p for p in agent_obs["monty_hall_phases"] if p in post_phases]
-                total_post = len([p for p in post_phases if p in completed_phases])
-                if total_post > 0:
-                    agent_obs["pps"] = len(mh_used_post) / total_post
-                else:
-                    agent_obs["pps"] = 0
-                agent_obs["pps_rounds"] = len(mh_used_post)
-                agent_obs["abandoned_monty_hall"] = abandoned_mh
-            else:
-                agent_obs["pps"] = 0
-                agent_obs["pps_rounds"] = 0
-                agent_obs["abandoned_monty_hall"] = False
         return agent_obs
 
     def _calculate_aggregate(self, agents):
         n = len(agents)
         if n == 0:
             return {}
-        mh_by_phase = {}
-        for phase in ['initial', 'debate1', 'debate2', 'discovery', 'debate3', 'debate4']:
-            mh_by_phase[phase] = sum(1 for a in agents.values() if phase in a.get('monty_hall_phases', []))
-        used_mh_before = sum(1 for a in agents.values() if any(p in ['initial', 'debate1', 'debate2'] for p in a.get('monty_hall_phases', [])))
         evaluated = {k: v for k, v in agents.items() if v.get("causal_recognition") is not None}
         n_ev = len(evaluated)
-        fw_count = defaultdict(int)
-        for a in agents.values():
-            for phase, fw in a.get("reasoning_frameworks", {}).items():
-                if fw and fw != "other":
-                    fw_count[f"{phase}_{fw}"] += 1
         dec_dist = defaultdict(int)
         for a in agents.values():
             d = a.get("final_decision", "")
@@ -158,15 +113,14 @@ class ObservationCollector:
         for a in agents.values():
             lengths.extend(a.get("cot_lengths", {}).values())
             times.extend(a.get("thinking_times", {}).values())
+
         base = {
             "n_agents": n,
-            "monty_hall_by_phase": mh_by_phase,
-            "used_monty_hall_before_discovery": used_mh_before,
-            "framework_distribution": dict(fw_count),
             "decision_distribution": dict(dec_dist),
             "avg_cot_length": statistics.mean(lengths) if lengths else 0,
             "avg_thinking_time": statistics.mean(times) if times else 0,
         }
+
         if n_ev == 0:
             return {
                 **base,
@@ -175,24 +129,15 @@ class ObservationCollector:
                 "crr_rate": "N/A",
                 "car1_crr": "N/A",
                 "car2_crr": "N/A",
-                "pps_mean": "N/A",
-                "pps_median": "N/A",
-                "abandonment_rate": "N/A",
-                "abandoned_count": "N/A",
-                "monty_hall_type_final": {}
             }
+
         crr_count = sum(1 for a in evaluated.values() if a.get("causal_recognition", False))
         crr_rate = crr_count / n_ev
         car1_ev = [a for a in evaluated.values() if a.get("car") == "car1"]
         car2_ev = [a for a in evaluated.values() if a.get("car") == "car2"]
         car1_crr = sum(1 for a in car1_ev if a.get("causal_recognition", False)) / len(car1_ev) if car1_ev else 0
         car2_crr = sum(1 for a in car2_ev if a.get("causal_recognition", False)) / len(car2_ev) if car2_ev else 0
-        pps_vals = [a.get("pps") for a in evaluated.values() if a.get("pps") is not None]
-        used_ev = [a for a in evaluated.values() if any(p in ['initial', 'debate1', 'debate2'] for p in a.get('monty_hall_phases', []))]
-        abandoned = [a for a in used_ev if a.get('abandoned_monty_hall', False)]
-        mh_final = defaultdict(int)
-        for a in evaluated.values():
-            mh_final[a.get("monty_hall_type", {}).get("debate4", "other")] += 1
+
         return {
             **base,
             "n_evaluated": n_ev,
@@ -200,12 +145,8 @@ class ObservationCollector:
             "crr_rate": crr_rate,
             "car1_crr": car1_crr,
             "car2_crr": car2_crr,
-            "pps_mean": statistics.mean(pps_vals) if pps_vals else 0,
-            "pps_median": statistics.median(pps_vals) if pps_vals else 0,
-            "abandonment_rate": len(abandoned) / len(used_ev) if used_ev else 0,
-            "abandoned_count": len(abandoned),
-            "monty_hall_type_final": dict(mh_final)
         }
+
 
 def generate_html_report(data, filename):
     try:
@@ -217,7 +158,6 @@ def generate_html_report(data, filename):
         negotiation = data.get('cross_team_negotiation', {})
         negotiated = data.get('final_decision', {}).get('negotiated', False)
         coin_flip_used = negotiation.get('coin_flip_used', False)
-        mh_by_phase = agg.get('monty_hall_by_phase', {})
 
         def fmt(v):
             if isinstance(v, float):
@@ -260,7 +200,6 @@ def generate_html_report(data, filename):
                         model = phase_data.get('model', '')
                         conclusion = phase_data.get('conclusion', '')
                         speech = phase_data.get('speech', '')
-                        # 构建元信息字符串
                         meta_parts = [f"{duration:.2f}s", f"{resp_len} chars"]
                         if provider and model:
                             meta_parts.append(f"Provider: {provider} ({model})")
@@ -397,27 +336,6 @@ function toggleCot(e) {{
             <div class="stat-item"><span class="stat-label">Vehicle 2 CRR</span><span class="stat-value {'na-value' if agg.get('car2_crr') == 'N/A' else ''}">{fmt(agg.get('car2_crr', 'N/A'))}</span></div>
         </div>
         <div class="stats-card">
-            <h3>Prior Knowledge Persistence (PPS)</h3>
-            <div class="stat-item"><span class="stat-label">Avg persistence</span><span class="stat-value {'na-value' if agg.get('pps_mean') == 'N/A' else ''}">{fmt(agg.get('pps_mean', 'N/A'))}</span></div>
-            <div class="stat-item"><span class="stat-label">Abandonment rate</span><span class="stat-value {'na-value' if agg.get('abandonment_rate') == 'N/A' else ''}">{fmt(agg.get('abandonment_rate', 'N/A'))}</span></div>
-            <div class="stat-item"><span class="stat-label">Used MH pre-discovery</span><span class="stat-value">{agg.get('used_monty_hall_before_discovery', 0)}</span></div>
-            <div class="stat-item"><span class="stat-label">Abandoned MH</span><span class="stat-value {'na-value' if agg.get('abandoned_count') == 'N/A' else ''}">{agg.get('abandoned_count', 'N/A')}</span></div>
-        </div>
-        <div class="stats-card">
-            <h3>Final MH Type</h3>
-            {''.join([f'<div class="stat-item"><span class="stat-label">{k}</span><span class="stat-value">{v}</span></div>' for k, v in agg.get('monty_hall_type_final', {}).items()])}
-        </div>
-    </div>
-
-    <div class="stats-card" style="margin-bottom:20px;">
-        <h3>Monty Hall Usage by Phase</h3>
-        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;">
-            {''.join([f'<div class="stat-item"><span class="stat-label">{p}</span><span class="stat-value">{mh_by_phase.get(p, 0)}</span></div>' for p in ['initial', 'debate1', 'debate2', 'discovery', 'debate3', 'debate4']])}
-        </div>
-    </div>
-
-    <div class="stats-grid">
-        <div class="stats-card">
             <h3>Performance</h3>
             <div class="stat-item"><span class="stat-label">Avg CoT Length</span><span class="stat-value">{agg.get('avg_cot_length', 0):.0f} chars</span></div>
             <div class="stat-item"><span class="stat-label">Avg Thinking Time</span><span class="stat-value">{agg.get('avg_thinking_time', 0):.2f}s</span></div>
@@ -425,10 +343,6 @@ function toggleCot(e) {{
         <div class="stats-card">
             <h3>Final Decisions</h3>
             {''.join([f'<div class="stat-item"><span class="stat-label">{k}</span><span class="stat-value">{v}</span></div>' for k, v in agg.get('decision_distribution', {}).items()])}
-        </div>
-        <div class="stats-card">
-            <h3>Frameworks</h3>
-            {''.join([f'<div class="stat-item"><span class="stat-label">{k}</span><span class="stat-value">{v}</span></div>' for k, v in list(agg.get('framework_distribution', {}).items())[:6]])}
         </div>
     </div>
 

@@ -1,4 +1,5 @@
 import os
+import re
 import random
 from datetime import datetime
 from dotenv import load_dotenv
@@ -17,9 +18,21 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 ANTHROPIC_BASE_URL = os.getenv("ANTHROPIC_BASE_URL", "https://api.anthropic.com/v1")
 
 # ---------- Ollama ----------
-OLLAMA_ENABLED = os.getenv("OLLAMA_ENABLED", "false").lower() == "true"
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
+# Robust parsing: accept TRUE / True / true, strip surrounding whitespace
+OLLAMA_ENABLED = os.getenv("OLLAMA_ENABLED", "false").strip().lower() == "true"
+
+# OpenAI-compatible endpoint used for chat completions
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1").rstrip("/")
+
+# Native Ollama root, used for /api/tags and /api/generate.
+# OLLAMA_BASE_URL ends with /v1 (OpenAI-compatible), so strip that suffix.
+OLLAMA_NATIVE_URL = re.sub(r"/v1$", "", OLLAMA_BASE_URL).rstrip("/")
+
+# Model name (must match `ollama list` exactly)
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b").strip()
+
+# Startup availability check timeout, in seconds
+OLLAMA_CHECK_TIMEOUT = float(os.getenv("OLLAMA_CHECK_TIMEOUT", "5"))
 
 # Models
 MODEL_NAMES = {
@@ -45,6 +58,7 @@ def is_valid_api_key(key: str) -> bool:
     if len(key) < 20:
         return False
     return True
+
 
 AVAILABLE_PROVIDERS = []
 if is_valid_api_key(DEEPSEEK_API_KEY):

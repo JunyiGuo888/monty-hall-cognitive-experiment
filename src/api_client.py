@@ -7,9 +7,11 @@ import traceback
 from config.settings import (
     API_PROVIDER, DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL,
     OPENAI_API_KEY, OPENAI_BASE_URL, ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL,
-    OLLAMA_BASE_URL, OLLAMA_MODEL,
+    OLLAMA_ENABLED, OLLAMA_BASE_URL, OLLAMA_NATIVE_URL, OLLAMA_MODEL,
+    OLLAMA_CHECK_TIMEOUT,
     MODEL_NAME, API_TIMEOUT, MAX_RETRIES, RETRY_DELAY, SHOW_FULL_COT, RUN_ID
 )
+
 
 def infer_phase(prompt: str) -> str:
     if "Desert Life-or-Death Decision" in prompt:
@@ -19,6 +21,57 @@ def infer_phase(prompt: str) -> str:
     if "Discussion Round" in prompt or "Final Decision" in prompt:
         return "debate"
     return "unknown"
+
+
+async def check_ollama_available(session: aiohttp.ClientSession | None = None) -> bool:
+    """Return True only if Ollama is reachable AND the configured model exists.
+
+    Uses the native /api/tags endpoint (not the OpenAI-compatible /v1 one),
+    so we strip the /v1 suffix via OLLAMA_NATIVE_URL from settings.
+
+    If `session` is None a temporary session is created and closed here;
+    otherwise the caller's session is reused.
+    """
+    if not OLLAMA_ENABLED:
+        print("[Ollama] OLLAMA_ENABLED is false, skipping check")
+        return False
+
+    url = f"{OLLAMA_NATIVE_URL}/api/tags"
+    owns_session = session is None
+    if owns_session:
+        session = aiohttp.ClientSession()
+
+    try:
+        async with session.get(
+            url,
+            timeout=aiohttp.ClientTimeout(total=OLLAMA_CHECK_TIMEOUT),
+        ) as resp:
+            if resp.status != 200:
+                print(f"[Ollama] /api/tags returned HTTP {resp.status}")
+                return False
+            data = await resp.json()
+            names = [m.get("name", "") for m in data.get("models", [])]
+            if not names:
+                print("[Ollama] reachable but no models installed")
+                return False
+            if OLLAMA_MODEL not in names:
+                print(f"[Ollama] model '{OLLAMA_MODEL}' not found. Available: {names}")
+                return False
+            print(f"[Ollama] OK, model '{OLLAMA_MODEL}' available")
+            return True
+    except aiohttp.ClientConnectorError:
+        print(f"[Ollama] cannot connect to {OLLAMA_NATIVE_URL}")
+        return False
+    except asyncio.TimeoutError:
+        print(f"[Ollama] timed out after {OLLAMA_CHECK_TIMEOUT}s")
+        return False
+    except Exception as e:
+        print(f"[Ollama] check failed: {e}")
+        return False
+    finally:
+        if owns_session:
+            await session.close()
+
 
 async def call_model_async(session, prompt, phase_name=None, provider=None, model=None, timeout=API_TIMEOUT):
     try:
@@ -51,6 +104,7 @@ async def call_model_async(session, prompt, phase_name=None, provider=None, mode
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json"
             }
+            # V4 Pro supports reasoning_effort and an explicit thinking switch.
             payload = {
                 "model": current_model,
                 "messages": [
@@ -58,7 +112,9 @@ async def call_model_async(session, prompt, phase_name=None, provider=None, mode
                     {"role": "user", "content": prompt}
                 ],
                 "temperature": 0.7,
-                "stream": True
+                "stream": True,
+                "reasoning_effort": "high",
+                "thinking": {"type": "enabled"}
             }
 
         elif current_provider == "openai":
@@ -74,6 +130,7 @@ async def call_model_async(session, prompt, phase_name=None, provider=None, mode
                 guidance = ""
             system_content = base_system + guidance
 
+            # Both GPT-5.x and o-series reasoning models use the /responses endpoint.
             if current_model in ["gpt-5.4", "gpt-5.6-luna"]:
                 url = f"{base_url}/responses"
                 headers = {
@@ -88,6 +145,21 @@ async def call_model_async(session, prompt, phase_name=None, provider=None, mode
                     ],
                     "stream": True,
                     "reasoning": {"effort": "xhigh", "summary": "auto"}
+                }
+            elif current_model in ["o4-mini", "o3-mini", "o1-mini", "o3", "o1"]:
+                url = f"{base_url}/responses"
+                headers = {
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json"
+                }
+                payload = {
+                    "model": current_model,
+                    "input": [
+                        {"role": "system", "content": system_content},
+                        {"role": "user", "content": prompt}
+                    ],
+                    "stream": True,
+                    "reasoning": {"effort": "high", "summary": "auto"}
                 }
             else:
                 url = f"{base_url}/chat/completions"
@@ -128,7 +200,7 @@ async def call_model_async(session, prompt, phase_name=None, provider=None, mode
             else:
                 thinking_params = {
                     "type": "enabled",
-                    "budget_tokens": 1200
+                    "budget_tokens": 4000
                 }
                 max_tokens = 8000
 
@@ -211,6 +283,13 @@ async def call_model_async(session, prompt, phase_name=None, provider=None, mode
                                         full_text += delta
                                         if SHOW_FULL_COT:
                                             print(delta, end="", flush=True)
+                                elif event_type == "response.reasoning_summary_text.delta":
+                                    # Reasoning summary streamed separately from the answer.
+                                    delta = data.get("delta", "")
+                                    if delta:
+                                        full_text += delta
+                                        if SHOW_FULL_COT:
+                                            print(f"[THINK] {delta}", end="", flush=True)
                                 elif event_type == "response.completed":
                                     pass
                             else:
