@@ -3,7 +3,7 @@
 > [!NOTE]
 > **Project Question:** How do AI reasoning systems respond when a simple probability problem is placed inside a changing information environment with multiple agents, competing decisions, and social pressure? This project grew from my interest in the gap between human intuition and algorithmic reasoning. Rather than testing a theory of consciousness, it uses a controlled multi-agent simulation to explore how beliefs and decisions change when the information available to an agent changes.
 
-<video src="docs/Montyhall1stver.mp4" width="800" controls playsinline preload="metadata"></video>
+<video src="https://github.com/user-attachments/assets/c0063c54-3800-47dd-8256-4c3484152e1b" width="800" controls playsinline preload="metadata"></video>
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
